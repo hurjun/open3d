@@ -73,11 +73,12 @@ print("방법 1: Statistical Outlier Removal")
 print("  nb_neighbors=20, std_ratio=2.0")
 print("=" * 60)
 
-inlier_stat, outlier_idx_stat = pcd_noisy.remove_statistical_outlier(
+inlier_stat, inlier_idx_stat = pcd_noisy.remove_statistical_outlier(
     nb_neighbors=20,
     std_ratio=2.0,
 )
-outlier_stat = pcd_noisy.select_by_index(outlier_idx_stat)
+# 반환값은 inlier 인덱스 — invert=True로 outlier 추출
+outlier_stat = pcd_noisy.select_by_index(inlier_idx_stat, invert=True)
 
 visualize_with_outliers(
     inlier_stat, outlier_stat,
@@ -93,11 +94,11 @@ print("방법 2: Radius Outlier Removal")
 print("  nb_points=16, radius=0.02")
 print("=" * 60)
 
-inlier_rad, outlier_idx_rad = pcd_noisy.remove_radius_outlier(
+inlier_rad, inlier_idx_rad = pcd_noisy.remove_radius_outlier(
     nb_points=16,
     radius=0.02,
 )
-outlier_rad = pcd_noisy.select_by_index(outlier_idx_rad)
+outlier_rad = pcd_noisy.select_by_index(inlier_idx_rad, invert=True)
 
 visualize_with_outliers(
     inlier_rad, outlier_rad,
@@ -111,8 +112,8 @@ print("결과 비교")
 print("=" * 60)
 total = len(pcd_noisy.points)
 print(f"  전체 포인트       : {total:,}")
-print(f"  Statistical 제거  : {len(outlier_idx_stat):,}개  ({len(outlier_idx_stat)/total:.1%})")
-print(f"  Radius 제거       : {len(outlier_idx_rad):,}개  ({len(outlier_idx_rad)/total:.1%})")
+print(f"  Statistical 제거  : {len(outlier_stat.points):,}개  ({len(outlier_stat.points)/total:.1%})")
+print(f"  Radius 제거       : {len(outlier_rad.points):,}개  ({len(outlier_rad.points)/total:.1%})")
 
 # ── 배운 점 ──────────────────────────────────────────────────────────────────
 # 1. Statistical: 전체 밀도 분포의 통계로 이상치 판단 — 파라미터 튜닝이 직관적
