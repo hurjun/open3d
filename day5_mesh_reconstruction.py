@@ -66,7 +66,9 @@ print("=" * 60)
 densities = np.asarray(densities)
 density_threshold = np.quantile(densities, 0.05)  # 하위 5% 제거
 vertices_to_remove = densities < density_threshold
-mesh_clean = mesh_poisson.remove_vertices_by_mask(vertices_to_remove)
+# remove_vertices_by_mask는 in-place 수정 후 None 반환 — 복사본에 적용
+mesh_clean = o3d.geometry.TriangleMesh(mesh_poisson)
+mesh_clean.remove_vertices_by_mask(vertices_to_remove)
 mesh_clean.compute_vertex_normals()
 
 print(f"  제거 전 vertices: {len(mesh_poisson.vertices):,}")
