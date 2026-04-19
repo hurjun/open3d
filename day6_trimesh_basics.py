@@ -85,7 +85,7 @@ print("\n" + "=" * 60)
 print("STEP 3: 연결 컴포넌트 분석")
 print("=" * 60)
 
-components = mesh.split(only_watertight=False)
+components = mesh.split(only_watertight=False, repair=False)
 print(f"  컴포넌트 수 : {len(components)}")
 for i, comp in enumerate(components):
     print(f"  컴포넌트 {i}  : vertices={len(comp.vertices):,}  faces={len(comp.faces):,}")
