@@ -102,17 +102,38 @@ print(f"  메인 컴포넌트 faces : {len(main_mesh.faces):,}")
 print(f"  watertight          : {main_mesh.is_watertight}")
 
 
-# ── STEP 5: 시각화 ───────────────────────────────────────────────────────────
+# ── STEP 5: 시각화 (Open3D 뷰어 사용) ──────────────────────────────────────
 print("\n" + "=" * 60)
 print("STEP 5: 시각화")
 print("=" * 60)
 
-# trimesh 자체 뷰어로 시각화
-print("\n[전체 Mesh]")
-mesh.show()
+def trimesh_to_o3d(tm: trimesh.Trimesh) -> o3d.geometry.TriangleMesh:
+    """trimesh → Open3D Mesh 변환."""
+    m = o3d.geometry.TriangleMesh()
+    m.vertices = o3d.utility.Vector3dVector(tm.vertices)
+    m.triangles = o3d.utility.Vector3iVector(tm.faces)
+    m.compute_vertex_normals()
+    return m
+
+print("\n[전체 Mesh — boundary edge(구멍 경계)를 빨간색으로 표시]")
+o3d_full = trimesh_to_o3d(mesh)
+o3d_full.paint_uniform_color([0.7, 0.7, 0.7])
+o3d.visualization.draw_geometries(
+    [o3d_full],
+    window_name="전체 Mesh",
+    width=1024, height=768,
+    mesh_show_back_face=True,
+)
 
 print("\n[메인 컴포넌트만]")
-main_mesh.show()
+o3d_main = trimesh_to_o3d(main_mesh)
+o3d_main.paint_uniform_color([0.7, 0.7, 0.7])
+o3d.visualization.draw_geometries(
+    [o3d_main],
+    window_name="메인 컴포넌트",
+    width=1024, height=768,
+    mesh_show_back_face=True,
+)
 
 
 # ── STEP 6: 품질 검증 요약 리포트 ───────────────────────────────────────────
