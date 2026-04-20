@@ -159,10 +159,10 @@ pcd_objects = o3d.geometry.PointCloud()
 pcd_objects.points = o3d.utility.Vector3dVector(xyz[~ground_mask])
 pcd_objects.colors = o3d.utility.Vector3dVector(colors[~ground_mask])
 
-print("\n[지면(초록) vs 나머지 분리]")
+print("\n[지면 제거 후 — 건물/식생/차량만 남음]")
 o3d.visualization.draw_geometries(
-    [pcd_ground, pcd_objects],
-    window_name="지면(초록) vs 나머지",
+    [pcd_objects],
+    window_name="지면 제거 후 (건물/식생/차량만)",
     width=1024, height=768,
 )
 
