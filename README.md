@@ -115,11 +115,13 @@ reports honestly.
 <img src="figures/day6_full.png" width="420" alt="Bunny mesh"/>
 
 ### Day 7 — LiDAR `.las` ingestion
-Write a synthetic LAS 1.4 scene (ground / building / vegetation / vehicle with
-ASPRS `classification` codes and `intensity`), read it back with `laspy`, inspect
-the header and per-class distribution, and convert it into a colour-coded Open3D
-cloud. Intensity (laser return strength) tracks material — metal vehicles reflect
-more strongly than vegetation.
+Write a synthetic LAS 1.4 scene (ground / building / vegetation plus a vehicle
+block) with ASPRS `classification` codes and `intensity`, read it back with
+`laspy`, inspect the header and per-class distribution, and convert it into a
+colour-coded Open3D cloud. ASPRS has no dedicated vehicle code, so the vehicle
+points carry code `0` — *unclassified*, which is what the script prints; it
+stands in for a vehicle in this synthetic scene. Intensity (laser return
+strength) tracks material — metal vehicles reflect more strongly than vegetation.
 
 <img src="figures/day7_full.png" width="360" alt="LiDAR scene coloured by class"/> <img src="figures/day7_no_ground.png" width="360" alt="LiDAR scene with ground removed"/>
 
@@ -131,8 +133,12 @@ more strongly than vegetation.
 
 Representative numbers from a single run (`python dayN_*.py`). Stages that sample
 points from the Bunny surface use Open3D's sampler, which is **not** seeded, so
-their point counts vary by a few percent between runs; the synthetic-scene stages
-(Day 3, Day 7) are seeded and fully reproducible.
+their point counts vary by a few percent between runs. Both synthetic-scene
+stages start from a seeded point cloud, but only **Day 7** is fully reproducible:
+Day 3's RANSAC plane fit (`segment_plane`) and DBSCAN are themselves unseeded, so
+its ground/object split and noise count also vary a few percent run-to-run (e.g.
+ground ranges ~4,930–4,990). The DBSCAN cluster count (3) and approximate sizes
+(~774 / 290 / 187) stay stable; only the split and noise count drift.
 
 | Stage | Metric | Value |
 |-------|--------|-------|
@@ -146,7 +152,7 @@ their point counts vary by a few percent between runs; the synthetic-scene stage
 | Day 4 | Point-to-plane ICP | fitness 1.0000, rmse 0.000000 |
 | Day 5 | Poisson mesh (`depth=9`) | 15,474 verts → 14,759 after 5% density trim |
 | Day 6 | Bunny mesh QA | watertight **False**, winding **True**, 223 boundary edges, 1 component |
-| Day 7 | Synthetic LAS scene | 13,800 pts; ground 58.0% / building 21.7% / vegetation 14.5% / vehicle 5.8% |
+| Day 7 | Synthetic LAS scene | 13,800 pts; ground 58.0% / building 21.7% / vegetation 14.5% / unclassified (vehicle stand-in) 5.8% |
 
 > **Note on Day 4:** the source cloud here is an *exact* rigid transform of the
 > target (no added noise or partial overlap), so ICP recovers the alignment

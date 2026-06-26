@@ -107,7 +107,8 @@ def main(out_dir: str | None = None) -> None:
     # STEP 5 - visualize whole scene and the non-ground subset.
     print("\n" + "=" * 60)
     print("STEP 5: visualization "
-          "(green=ground, blue=building, lime=vegetation, red=vehicle)")
+          "(green=ground, blue=building, lime=vegetation, "
+          "red=unclassified/vehicle)")
     print("=" * 60)
     render(
         [pcd],
