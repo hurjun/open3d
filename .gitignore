@@ -1,0 +1,43 @@
+# ── Personal / private notes — never publish ────────────────────────────────
+CLAUDE.md
+memory/
+.claude/
+
+# ── Editor / OS ──────────────────────────────────────────────────────────────
+.idea/
+.vscode/
+.DS_Store
+
+# ── Python ───────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# ── Virtual environments ─────────────────────────────────────────────────────
+.venv/
+venv/
+env/
+ENV/
+
+# ── Point-cloud / mesh / LiDAR data — downloaded or regenerated, not versioned ─
+*.las
+*.laz
+*.ply
+*.pcd
+*.pts
+*.xyz
+*.bin
+*.npy
+*.npz
+
+# ── Open3D downloaded sample data cache ──────────────────────────────────────
+open3d_data/
+
+# NOTE: small result screenshots under figures/ ARE committed on purpose.
+# Large rendered point clouds / meshes should not be — keep them out by hand.
