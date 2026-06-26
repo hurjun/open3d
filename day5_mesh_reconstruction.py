@@ -1,140 +1,112 @@
+"""Day 5 - Surface reconstruction: Poisson meshing from a point cloud.
+
+Turns an oriented point cloud into a watertight triangle mesh, then trims the
+low-confidence (low-density) regions that Poisson reconstruction hallucinates
+outside the sampled surface.
+
+Run:
+    python day5_mesh_reconstruction.py
+    python day5_mesh_reconstruction.py --headless
 """
-Day 5: PCD → Mesh 변환 (Poisson Surface Reconstruction)
-Point Cloud의 점들을 삼각형으로 연결해 연속적인 표면을 만든다
-"""
-import open3d as o3d
 import numpy as np
+import open3d as o3d
+
+from o3d_utils import bunny_point_cloud, fig_path, render, stage_out_dir
 
 
-def load_bunny_pcd() -> o3d.geometry.PointCloud:
-    """Stanford Bunny PCD 로드 + normal 추정."""
-    mesh = o3d.io.read_triangle_mesh(o3d.data.BunnyMesh().path)
-    mesh.compute_vertex_normals()
-    pcd = mesh.sample_points_uniformly(number_of_points=50_000)
-    pcd = pcd.voxel_down_sample(voxel_size=0.003)
-
-    # Poisson reconstruction은 normal이 반드시 필요
-    pcd.estimate_normals(
-        o3d.geometry.KDTreeSearchParamHybrid(radius=0.01, max_nn=30)
+def main(out_dir: str | None = None) -> None:
+    # Poisson requires oriented normals, so request them at sampling time.
+    pcd = bunny_point_cloud(n_points=50_000, voxel_size=0.003, with_normals=True)
+    print("=" * 60)
+    print(f"PCD points : {len(pcd.points):,}")
+    print(f"has normals: {pcd.has_normals()}")
+    print("=" * 60)
+    render(
+        [pcd],
+        window_name="Day5 - input PCD",
+        out_path=fig_path(out_dir, "day5_input.png"),
     )
-    pcd.orient_normals_towards_camera_location(np.array([0.0, 0.0, 1.0]))
-    return pcd
+
+    # STEP 1 - Poisson reconstruction.
+    #   Solves for an indicator function whose gradient matches the oriented
+    #   normals; `depth` sets the octree resolution (higher = finer, slower).
+    #   `densities` records how many samples support each output vertex.
+    print("\n" + "=" * 60)
+    print("STEP 1: Poisson surface reconstruction (depth=9)")
+    print("=" * 60)
+    mesh_poisson, densities = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(
+        pcd, depth=9, width=0, scale=1.1, linear_fit=False
+    )
+    print(f"  vertices  : {len(mesh_poisson.vertices):,}")
+    print(f"  triangles : {len(mesh_poisson.triangles):,}")
+
+    # STEP 2 - trim low-density vertices (spurious surface away from real points).
+    print("\n" + "=" * 60)
+    print("STEP 2: trim low-density regions (bottom 5%)")
+    print("=" * 60)
+    densities = np.asarray(densities)
+    threshold = np.quantile(densities, 0.05)
+    to_remove = densities < threshold
+    # remove_vertices_by_mask mutates in place and returns None; copy first.
+    mesh_clean = o3d.geometry.TriangleMesh(mesh_poisson)
+    mesh_clean.remove_vertices_by_mask(to_remove)
+    mesh_clean.compute_vertex_normals()
+    print(f"  vertices before : {len(mesh_poisson.vertices):,}")
+    print(f"  vertices after  : {len(mesh_clean.vertices):,}")
+    print(f"  triangles after : {len(mesh_clean.triangles):,}")
+
+    # STEP 3 - peek at the mesh data structures.
+    print("\n" + "=" * 60)
+    print("STEP 3: mesh structure")
+    print("=" * 60)
+    verts = np.asarray(mesh_clean.vertices)
+    tris = np.asarray(mesh_clean.triangles)
+    print(f"  vertices shape : {verts.shape}  <- (N, 3) coordinates")
+    print(f"  triangles shape: {tris.shape}  <- (M, 3) vertex indices")
+    print(f"  triangle 0     : {tris[0]}  <- connects vertices {tris[0].tolist()}")
+
+    # STEP 4 - visualize: colour the raw mesh by density, then the trimmed mesh.
+    print("\n" + "=" * 60)
+    print("STEP 4: visualization")
+    print("=" * 60)
+    d = (densities - densities.min()) / (densities.max() - densities.min())
+    mesh_poisson.vertex_colors = o3d.utility.Vector3dVector(
+        np.column_stack([d, d * 0.5, 1.0 - d])  # blue=low density, yellow=high
+    )
+    render(
+        [mesh_poisson],
+        window_name="Day5 - Poisson mesh (density colour)",
+        out_path=fig_path(out_dir, "day5_density.png"),
+        mesh_show_back_face=True,
+    )
+
+    mesh_clean.paint_uniform_color([0.7, 0.7, 0.7])
+    render(
+        [mesh_clean],
+        window_name="Day5 - final mesh (low-density trimmed)",
+        out_path=fig_path(out_dir, "day5_final.png"),
+        mesh_show_back_face=True,
+    )
+
+    pcd_vis = o3d.geometry.PointCloud(pcd)
+    pcd_vis.paint_uniform_color([1.0, 0.4, 0.3])
+    mesh_shifted = o3d.geometry.TriangleMesh(mesh_clean)
+    mesh_shifted.translate([0.2, 0, 0])
+    render(
+        [pcd_vis, mesh_shifted],
+        window_name="Day5 - PCD (red) vs mesh (grey)",
+        out_path=fig_path(out_dir, "day5_compare.png"),
+        width=1200,
+        mesh_show_back_face=True,
+    )
 
 
-# ── 준비: PCD 로드 ───────────────────────────────────────────────────────────
-pcd = load_bunny_pcd()
-print("=" * 60)
-print(f"PCD 포인트 수: {len(pcd.points):,}")
-print(f"normal 있음 : {pcd.has_normals()}")
-print("=" * 60)
+# Takeaways
+# 1. Poisson reconstruction uses oriented normals to build a watertight mesh.
+# 2. Higher depth = more detail but slower; 8-10 is a practical range.
+# 3. Low-density vertices sit where few real points exist -> trim them.
+# 4. A mesh is vertices (coordinates) + triangles (triples of vertex indices).
+# 5. Point clouds suit perception/analysis; meshes suit rendering/simulation.
 
-print("\n[원본 PCD]")
-o3d.visualization.draw_geometries(
-    [pcd],
-    window_name="원본 PCD",
-    width=1024, height=768,
-    point_show_normal=False,
-)
-
-
-# ── STEP 1: Poisson Surface Reconstruction ───────────────────────────────────
-# depth: 재구성 해상도. 높을수록 디테일하지만 느리고 메모리 많이 씀 (보통 8~11)
-# densities: 각 vertex가 얼마나 많은 점으로 지지되는지 (낮으면 신뢰도 낮은 영역)
-print("\n" + "=" * 60)
-print("STEP 1: Poisson Surface Reconstruction (depth=9)")
-print("=" * 60)
-
-mesh_poisson, densities = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(
-    pcd,
-    depth=9,        # 재구성 해상도
-    width=0,
-    scale=1.1,
-    linear_fit=False,
-)
-
-print(f"  vertices  (꼭짓점) : {len(mesh_poisson.vertices):,}")
-print(f"  triangles (삼각형) : {len(mesh_poisson.triangles):,}")
-
-
-# ── STEP 2: 저밀도 영역 제거 ─────────────────────────────────────────────────
-# Poisson은 PCD 바깥쪽에도 가상의 표면을 만들 수 있음
-# densities가 낮은 vertex = 실제 점이 거의 없는 허구 영역 → 제거
-print("\n" + "=" * 60)
-print("STEP 2: 저밀도 영역 제거")
-print("=" * 60)
-
-densities = np.asarray(densities)
-density_threshold = np.quantile(densities, 0.05)  # 하위 5% 제거
-vertices_to_remove = densities < density_threshold
-# remove_vertices_by_mask는 in-place 수정 후 None 반환 — 복사본에 적용
-mesh_clean = o3d.geometry.TriangleMesh(mesh_poisson)
-mesh_clean.remove_vertices_by_mask(vertices_to_remove)
-mesh_clean.compute_vertex_normals()
-
-print(f"  제거 전 vertices: {len(mesh_poisson.vertices):,}")
-print(f"  제거 후 vertices: {len(mesh_clean.vertices):,}")
-print(f"  제거 후 triangles: {len(mesh_clean.triangles):,}")
-
-
-# ── STEP 3: Mesh 구조 탐색 ───────────────────────────────────────────────────
-# PCD의 .points 처럼 Mesh도 numpy로 접근 가능
-print("\n" + "=" * 60)
-print("STEP 3: Mesh 내부 구조")
-print("=" * 60)
-
-verts = np.asarray(mesh_clean.vertices)
-tris = np.asarray(mesh_clean.triangles)
-print(f"  vertices shape  : {verts.shape}  ← (N, 3) 꼭짓점 좌표")
-print(f"  triangles shape : {tris.shape}  ← (M, 3) 삼각형 꼭짓점 인덱스")
-print(f"  삼각형 0번      : {tris[0]}  ← 꼭짓점 {tris[0][0]}, {tris[0][1]}, {tris[0][2]}번을 연결")
-
-
-# ── STEP 4: 시각화 비교 ──────────────────────────────────────────────────────
-print("\n" + "=" * 60)
-print("STEP 4: 시각화")
-print("=" * 60)
-
-# density를 색상으로 표현 (낮은=파랑, 높은=노랑)
-density_colors = (densities - densities.min()) / (densities.max() - densities.min())
-density_color_map = np.column_stack([
-    density_colors,
-    density_colors * 0.5,
-    1.0 - density_colors,
-])
-mesh_poisson.vertex_colors = o3d.utility.Vector3dVector(density_color_map)
-
-print("\n[Poisson Mesh — 색상=density (파랑=낮음/허구영역, 노랑=높음/신뢰영역)]")
-o3d.visualization.draw_geometries(
-    [mesh_poisson],
-    window_name="Poisson Mesh (density 시각화)",
-    width=1024, height=768,
-    mesh_show_back_face=True,
-)
-
-mesh_clean.paint_uniform_color([0.7, 0.7, 0.7])
-print("\n[저밀도 제거 후 최종 Mesh]")
-o3d.visualization.draw_geometries(
-    [mesh_clean],
-    window_name="최종 Mesh (저밀도 제거)",
-    width=1024, height=768,
-    mesh_show_back_face=True,
-)
-
-print("\n[PCD vs Mesh 나란히 비교]")
-pcd_vis = o3d.geometry.PointCloud(pcd)
-pcd_vis.paint_uniform_color([1.0, 0.4, 0.3])
-mesh_shifted = o3d.geometry.TriangleMesh(mesh_clean)
-mesh_shifted.translate([0.2, 0, 0])
-o3d.visualization.draw_geometries(
-    [pcd_vis, mesh_shifted],
-    window_name="PCD(빨강) vs Mesh(회색)",
-    width=1200, height=768,
-    mesh_show_back_face=True,
-)
-
-# ── 배운 점 ──────────────────────────────────────────────────────────────────
-# 1. Poisson reconstruction은 normal을 이용해 PCD를 watertight Mesh로 변환
-# 2. depth가 높을수록 디테일하지만 느림 — 실무에서는 8~10이 적당
-# 3. densities가 낮은 vertex는 실제 점이 없는 허구 영역 → 제거 필요
-# 4. Mesh의 핵심 구조: vertices(꼭짓점 좌표) + triangles(꼭짓점 인덱스 3개)
-# 5. PCD는 인식/분석용, Mesh는 렌더링/시뮬레이션용 — MORAI에서 둘 다 쓰임
+if __name__ == "__main__":
+    main(out_dir=stage_out_dir(__doc__))
