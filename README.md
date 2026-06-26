@@ -68,12 +68,22 @@ Add 500 uniformly-random noise points, then compare two denoisers.
 global distribution; the radius method keys off local density and tends to be
 stricter on the uneven density of real LiDAR.
 
+<img src="figures/day2_statistical.png" width="420" alt="statistical outlier removal: kept inliers vs removed outliers"/>
+
+*Statistical outlier removal on the noisy Bunny: grey = kept inliers, red =
+removed outliers (mostly the injected off-surface noise points).*
+
 ### Day 3 — RANSAC ground segmentation + DBSCAN clustering
 The first two steps of LiDAR object detection. **RANSAC** repeatedly samples 3
 points, fits a candidate plane, and counts inliers within `distance_threshold`;
 the best plane over `num_iterations` is the ground (its normal comes out ≈ +z).
 Removing the ground leaves the objects, which **DBSCAN** groups by density —
 without needing to know the object count in advance (label `-1` = noise).
+
+<img src="figures/day3_input.png" width="360" alt="raw synthetic driving scene, top-down"/>
+
+*Raw synthetic scene before segmentation (top-down): a dense ground plane with
+three box-shaped objects resting on it — the input both stages below operate on.*
 
 <img src="figures/day3_ransac.png" width="360" alt="RANSAC ground vs objects"/> <img src="figures/day3_clusters.png" width="360" alt="DBSCAN clusters"/>
 
@@ -189,10 +199,15 @@ python day3_ransac_dbscan.py
 ```
 
 **Headless mode** (no display required) renders the same scenes off-screen to PNG
-files instead — this is how the figures above were produced:
+files instead — this is how every figure above was produced. Each stage accepts
+`--headless` and `--out-dir`:
 
 ```bash
+# regenerate one stage's figures
 python day3_ransac_dbscan.py --headless --out-dir figures
+
+# regenerate every stage's figures
+for d in day*.py; do python "$d" --headless --out-dir figures; done
 ```
 
 ## Tests & CI
