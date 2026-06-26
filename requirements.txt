@@ -1,0 +1,10 @@
+# Runtime dependencies for the 3D perception tour.
+# Pinned to the versions the scripts were developed and verified against
+# (Python 3.10, macOS Apple Silicon).
+open3d==0.19.0
+laspy==2.7.0
+trimesh==4.11.5
+networkx==3.4.2
+numpy==2.2.6
+matplotlib==3.10.8
+scipy==1.15.3

@@ -1,0 +1,12 @@
+[tool.pytest.ini_options]
+# Make the repo root importable so tests can `import o3d_utils`.
+pythonpath = ["."]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+# Defaults (pyflakes + a subset of pycodestyle) plus import sorting.
+extend-select = ["I"]
